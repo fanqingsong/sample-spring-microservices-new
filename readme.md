@@ -27,15 +27,17 @@ Currently you may find here some examples of microservices implementation using 
 
 ### Usage
 
-Build the apps with images (we need ji for `config-service` since it contains `curl`):
+Build and start every service with Docker Compose:
+
 ```shell
-$ mvn clean package -Pbuild-image
+docker compose up --build
 ```
 
-Then run all the containers with `docker-compose`:
-```shell
-$ docker-compose up
-```
+Gateway: http://localhost:8060  
+Eureka: http://localhost:8061  
+Config: http://localhost:8088  
+Zipkin: http://localhost:9411  
+Employee / Department / Organization: ports 8080 / 8081 / 8082
 
 #### Run Locally
 

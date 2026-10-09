@@ -1,0 +1,10 @@
+.git
+.idea
+.vscode
+**/.project
+**/.settings
+**/target
+*.iml
+*.md
+System Observability using ELK.txt
+.circleci
