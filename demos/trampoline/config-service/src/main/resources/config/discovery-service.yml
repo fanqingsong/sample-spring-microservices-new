@@ -9,7 +9,17 @@ eureka:
     fetchRegistry: false
     serviceUrl:
       defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
-      
+
+logging:
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss}){blue} %clr(${LOG_LEVEL_PATTERN:-%5p}) %m%n"
+
+spring:
+  output:
+    ansi:
+      enabled: always
+
 management:
-  endpoint.shutdown.enabled: true
-  endpoints.web.exposure.include: '*'
+  tracing:
+    sampling:
+      probability: 1.0

@@ -1,36 +1,22 @@
-schema {
-  query: DepartmentQueries
-  mutation: DepartmentMutations
-}
-
-type DepartmentQueries {
+type Query {
   departments: [Department]
-  department(id: ID!): Department!
-  departmentsByOrganization(organizationId: Int!): [Department]
-  departmentsByOrganizationWithEmployees(organizationId: Int!): [Department]
-}
-
-type DepartmentMutations {
-  newDepartment(department: DepartmentInput!): Department
-  deleteDepartment(id: ID!) : Boolean
-  updateDepartment(id: ID!, department: DepartmentInput!): Department
-}
-
-input DepartmentInput {
-  organizationId: Int!
-  name: String!
+  department(id: ID!): Department
+  departmentsByOrganization(organizationId: ID!): [Department]
+  departmentsByOrganizationWithEmployees(organizationId: ID!): [Department]
 }
 
 type Department {
-  id: ID!
-  organizationId: Int!
-  name: String!
+  id: ID
+  organizationId: ID
+  name: String
   employees: [Employee]
 }
 
 type Employee {
-  id: ID!
-  name: String!
-  position: String!
-  salary: Int!
+  id: ID
+  organizationId: ID
+  departmentId: ID
+  name: String
+  age: Int
+  position: String
 }

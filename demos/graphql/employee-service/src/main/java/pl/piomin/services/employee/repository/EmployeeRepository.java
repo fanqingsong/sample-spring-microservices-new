@@ -18,11 +18,10 @@ public class EmployeeRepository {
 	}
 	
 	public Employee findById(Long id) {
-		Optional<Employee> employee = employees.stream().filter(a -> a.getId().equals(id)).findFirst();
-		if (employee.isPresent())
-			return employee.get();
-		else
-			return null;
+		return employees.stream()
+				.filter(a -> a.getId().equals(id))
+				.findFirst()
+				.orElseThrow();
 	}
 	
 	public List<Employee> findAll() {
@@ -30,22 +29,15 @@ public class EmployeeRepository {
 	}
 	
 	public List<Employee> findByDepartment(Long departmentId) {
-		return employees.stream().filter(a -> a.getDepartmentId().equals(departmentId)).collect(Collectors.toList());
+		return employees.stream()
+				.filter(a -> a.getDepartmentId().equals(departmentId))
+				.toList();
 	}
 	
 	public List<Employee> findByOrganization(Long organizationId) {
-		return employees.stream().filter(a -> a.getOrganizationId().equals(organizationId)).collect(Collectors.toList());
-	}
-	
-	public boolean delete(Long id) {
-		return employees.removeIf(it -> it.getId() == id.longValue());
-	}
-	
-	public Employee update(Long id, Employee employee) {
-		employee.setId(id);
-		int index = employees.indexOf(employee);
-		employees.set(index, employee);
-		return employee;
+		return employees.stream()
+				.filter(a -> a.getOrganizationId().equals(organizationId))
+				.toList();
 	}
 	
 }

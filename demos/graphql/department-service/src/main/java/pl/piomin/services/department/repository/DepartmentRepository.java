@@ -1,11 +1,9 @@
 package pl.piomin.services.department.repository;
 
+import pl.piomin.services.department.model.Department;
+
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import pl.piomin.services.department.model.Department;
 
 public class DepartmentRepository {
 
@@ -18,11 +16,10 @@ public class DepartmentRepository {
 	}
 	
 	public Department findById(Long id) {
-		Optional<Department> department = departments.stream().filter(a -> a.getId().equals(id)).findFirst();
-		if (department.isPresent())
-			return department.get();
-		else
-			return null;
+		return departments.stream()
+				.filter(a -> a.getId().equals(id))
+				.findFirst()
+				.orElseThrow();
 	}
 	
 	public List<Department> findAll() {
@@ -30,18 +27,9 @@ public class DepartmentRepository {
 	}
 	
 	public List<Department> findByOrganization(Long organizationId) {
-		return departments.stream().filter(a -> a.getOrganizationId().equals(organizationId)).collect(Collectors.toList());
-	}
-	
-	public boolean delete(Long id) {
-		return departments.removeIf(it -> it.getId() == id.longValue());
-	}
-	
-	public Department update(Long id, Department department) {
-		department.setId(id);
-		int index = departments.indexOf(department);
-		departments.set(index, department);
-		return department;
+		return departments.stream()
+				.filter(a -> a.getOrganizationId().equals(organizationId))
+				.toList();
 	}
 	
 }

@@ -134,7 +134,7 @@ oc logs deployment/organization-service
 ## 已知限制
 
 - 仓库没有完整 OpenShift Template，部署命令需要根据集群版本补充；
-- 示例来自较早的 OpenShift/Minishift 和 Spring Boot 2.0 版本，现代资源名与 builder 镜像可能不同；
+- 应用代码已升级到 Spring Boot 4.1.x 与 Springdoc；OpenShift builder 名称与 S2I 流程需按当前集群目录调整；
 - 示例不包含生产级 Secret、持久卷、探针、资源限制和高可用 MongoDB；
 - 不应为了方便直接给 default ServiceAccount 授予集群管理员权限。
 

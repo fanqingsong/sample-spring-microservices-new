@@ -1,15 +1,32 @@
 server:
-  port: 8091
+  port: 0
+  forward-headers-strategy: framework
 
 eureka:
   client:
     serviceUrl:
       defaultZone: http://localhost:8061/eureka/
-      
+  instance:
+    instanceId: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+
 logging:
-  pattern: 
-    console: "%d{yyyy-MM-dd HH:mm:ss} ${LOG_LEVEL_PATTERN:-%5p} %m%n"
-    
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss}){blue} %clr([%X{traceId:-},%X{spanId:-}]){cyan} %clr(${LOG_LEVEL_PATTERN:-%5p}) %m%n"
+
+springdoc:
+  packagesToScan: pl.piomin.services.department
+  cache:
+    disabled: true
+  version: '@springdoc.version@'
+  api-docs:
+    version: openapi_3_1
+
+spring:
+  output:
+    ansi:
+      enabled: always
+
 management:
-  endpoint.shutdown.enabled: true
-  endpoints.web.exposure.include: '*'
+  tracing:
+    sampling:
+      probability: 1.0

@@ -26,12 +26,12 @@ flowchart LR
 | --- | --- | --- | --- |
 | [master](demos/master/readme.md) | 学习当前主线的完整微服务调用链 | Config Server、Eureka、Spring Cloud Gateway、OpenFeign、Springdoc、Zipkin | 希望先跑通完整示例 |
 | [springboot3](demos/springboot3/readme.md) | 理解 Boot 3 时代的追踪与 API 文档 | Spring Boot 3、Micrometer Tracing、OpenTelemetry、Springdoc | 维护 Boot 3 项目的读者 |
-| [alibaba](demos/alibaba/readme.md) | 用 Nacos 同时承担注册与配置 | Nacos、Zuul、OpenFeign | 关注 Spring Cloud Alibaba |
-| [graphql](demos/graphql/readme.md) | 比较 GraphQL 与 REST 的跨服务查询 | GraphQL Java Tools、Apollo Client、Eureka | 评估 GraphQL 服务化 |
-| [kubernetes](demos/kubernetes/readme.md) | 了解微服务部署到 Kubernetes 的基本资源关系 | Kubernetes、Ingress、MongoDB、Zuul | 学习容器编排 |
-| [openshift](demos/openshift/readme.md) | 了解 OpenShift Source-to-Image 发布流程 | OpenShift S2I、MongoDB、OpenFeign | 使用 OpenShift 的读者 |
-| [trampoline](demos/trampoline/readme.md) | 在本机统一管理多个 Spring Boot 进程 | Trampoline、Eureka、Config、Gateway/Zuul | 经常本地联调多服务 |
-| [rest-api-docs](demos/rest-api-docs/readme.md) | 比较测试驱动文档与运行时文档 | Spring REST Docs、Asciidoctor、Springfox | 设计 API 文档流程 |
+| [alibaba](demos/alibaba/readme.md) | 用 Nacos 承担服务发现 | Nacos、Spring Cloud Gateway、OpenFeign | 关注 Spring Cloud Alibaba |
+| [graphql](demos/graphql/readme.md) | 比较 GraphQL 与 REST 的跨服务查询 | Spring for GraphQL、HttpGraphQlClient、Eureka | 评估 GraphQL 服务化 |
+| [kubernetes](demos/kubernetes/readme.md) | 了解微服务部署到 Kubernetes 的基本资源关系 | Kubernetes、`networking.k8s.io/v1` Ingress、MongoDB、Gateway | 学习容器编排 |
+| [openshift](demos/openshift/readme.md) | 了解 OpenShift Source-to-Image 发布流程 | OpenShift S2I、MongoDB、OpenFeign、Springdoc | 使用 OpenShift 的读者 |
+| [trampoline](demos/trampoline/readme.md) | 在本机统一管理多个 Spring Boot 进程 | Trampoline、Eureka、Config、Gateway | 经常本地联调多服务 |
+| [rest-api-docs](demos/rest-api-docs/readme.md) | 比较测试驱动文档与运行时文档 | Spring REST Docs、Asciidoctor、Springdoc | 设计 API 文档流程 |
 
 ```mermaid
 flowchart TB
@@ -79,4 +79,4 @@ docker compose up --build
 docker compose down
 ```
 
-其他历史 demo 可能依赖 Nacos、Kubernetes、OpenShift、Trampoline 或旧版 JDK。请先阅读其 README 中的“前置条件”和“已知限制”，不要假设所有目录都支持 Docker Compose。
+除 `master` 外，`alibaba` 也提供 Docker Compose（含 Nacos）。`kubernetes`、`openshift`、`graphql`、`trampoline` 等示例的前置条件见各自 README；多数已对齐 Java 25 与 Spring Boot 4.1.x，不再使用 Zuul 或 Springfox。

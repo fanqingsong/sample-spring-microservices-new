@@ -5,24 +5,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Repository;
-
 import pl.piomin.services.employee.model.Employee;
 
-@Repository
-@ConfigurationProperties(prefix = "repository")
 public class EmployeeRepository {
 
 	private List<Employee> employees = new ArrayList<>();
-	
-	public List<Employee> getEmployees() {
-		return employees;
-	}
-
-	public void setEmployees(List<Employee> employees) {
-		this.employees = employees;
-	}
 	
 	public Employee add(Employee employee) {
 		employee.setId((long) (employees.size()+1));
@@ -31,11 +18,10 @@ public class EmployeeRepository {
 	}
 	
 	public Employee findById(Long id) {
-		Optional<Employee> employee = employees.stream().filter(a -> a.getId().equals(id)).findFirst();
-		if (employee.isPresent())
-			return employee.get();
-		else
-			return null;
+		return employees.stream()
+				.filter(a -> a.getId().equals(id))
+				.findFirst()
+				.orElseThrow();
 	}
 	
 	public List<Employee> findAll() {
@@ -43,11 +29,15 @@ public class EmployeeRepository {
 	}
 	
 	public List<Employee> findByDepartment(Long departmentId) {
-		return employees.stream().filter(a -> a.getDepartmentId().equals(departmentId)).collect(Collectors.toList());
+		return employees.stream()
+				.filter(a -> a.getDepartmentId().equals(departmentId))
+				.toList();
 	}
 	
 	public List<Employee> findByOrganization(Long organizationId) {
-		return employees.stream().filter(a -> a.getOrganizationId().equals(organizationId)).collect(Collectors.toList());
+		return employees.stream()
+				.filter(a -> a.getOrganizationId().equals(organizationId))
+				.toList();
 	}
-
+	
 }
