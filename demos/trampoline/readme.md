@@ -217,6 +217,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=instance2
 
 ## 延伸阅读
 
+- [负载均衡在本 Demo 中的实现](docs/load-balancing.md)
 - [Managing Spring Boot apps locally with Trampoline](https://piotrminkowski.com/2018/06/08/managing-spring-boot-apps-locally-with-trampoline/)
 - 对照完整调用链：[master](../master/readme.md)
 - 返回[示例总览](../../README.md)
