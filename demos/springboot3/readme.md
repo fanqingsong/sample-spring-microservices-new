@@ -2,15 +2,16 @@
 
 ## Demo 目标
 
-本示例展示 Spring Boot 3 技术栈中的完整微服务骨架，重点不是业务 CRUD，而是以下基础能力如何协作：
+本示例回答的是：**在 Spring Boot 3 技术栈上，Config、Eureka、Gateway、OpenFeign、Micrometer Tracing 和 Springdoc 如何协作；镜像如何用 Buildpacks 构建。** 领域仍是 Organization → Department → Employee，便于对照 [`master`](../master/readme.md)。
 
-- Eureka 注册发现与 Config Server 集中配置；
-- Spring Cloud Gateway 和 OpenFeign 的服务名调用；
-- Micrometer Tracing、OpenTelemetry Bridge 与 Zipkin；
-- Springdoc OpenAPI 文档及网关聚合；
-- Spring Boot Buildpacks 构建 OCI 镜像。
+要验证的几件事：
 
-代码基于 Java 21、Spring Boot 3.5.9 和 Spring Cloud 2025.0.0。领域仍是 Organization → Department → Employee，便于与 [`master`](../master/readme.md) 对照。
+1. **Boot 3 调用链可跑通**：Eureka 注册 + Gateway `lb://` + Feign 聚合，与 master 业务路径相同。
+2. **追踪是 Micrometer + OpenTelemetry，不是 Sleuth**：日志带 `traceId`/`spanId`，Zipkin 能看到跨 Gateway 与三个业务服务的 Trace。
+3. **网关聚合 OpenAPI**：Swagger UI 可切换三个服务的文档。
+4. **镜像来自 Buildpacks / Jib，而不是多阶段 Dockerfile**：Compose 只引用预构建镜像，不含 `build:`。
+
+代码基于 **Java 21、Spring Boot 3.5.9、Spring Cloud 2025.0.0**。
 
 ## 架构
 
@@ -79,12 +80,12 @@ sequenceDiagram
 
 ### 镜像构建
 
-各模块的 `build-image` Maven profile 调用 Spring Boot 插件，由 Cloud Native Buildpacks 生成镜像。与 `master` 的多阶段 Dockerfile 不同，本目录的 `docker-compose.yml` 只引用镜像，不包含 `build:`。
+各模块的 `build-image` Maven profile 调用 Spring Boot 插件或 Jib，由 Cloud Native Buildpacks / Jib 生成镜像。与 `master` 的多阶段 Dockerfile 不同，本目录的 `docker-compose.yml` 只引用镜像，不包含 `build:`。
 
 ```mermaid
 flowchart LR
     Source[Java 源码] --> Maven[mvn package -Pbuild-image]
-    Maven --> Buildpack[Spring Boot Buildpacks]
+    Maven --> Buildpack[Spring Boot Buildpacks / Jib]
     Buildpack --> Images[本地 OCI 镜像]
     Images --> Compose[docker compose up]
 ```
@@ -108,6 +109,8 @@ flowchart LR
 - Docker 与 Docker Compose 插件；
 - 构建镜像时可访问 Maven 仓库和 Buildpacks builder/run 镜像。
 
+工作目录：`demos/springboot3`。
+
 ### 构建并启动容器
 
 先按各模块 POM 中的 `build-image` profile 生成 Compose 所需镜像：
@@ -117,7 +120,9 @@ mvn clean package -Pbuild-image
 docker compose up
 ```
 
-> 注意：`docker-compose.yml` 是历史快照，引用的部分镜像标签为 `1.1-SNAPSHOT`，部分为 `1.2-SNAPSHOT`。若本地构建得到的标签与清单不一致，请以各模块 `pom.xml` 的 `imageName` 为准同步调整清单，或直接使用下面的本地 Maven 方式。
+Compose 引用的镜像标签与模块版本一致：config / discovery / gateway 为 `piomin/*:1.1-SNAPSHOT`，三个业务服务为 `piomin/*:1.2-SNAPSHOT`。若本地构建得到的标签与清单不一致，请以各模块 `pom.xml` 的 `imageName` 为准同步调整清单，或直接使用下面的本地 Maven 方式。
+
+业务服务容器**没有**把 8080 映射到固定宿主机端口，验证一律走网关 `8060`。
 
 停止环境：
 
@@ -146,16 +151,42 @@ docker run --rm -p 9411:9411 swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/
 
 ## 验证
 
-1. 打开 <http://localhost:8061>，确认业务服务与 Gateway 已注册。
-2. 请求聚合接口：
+### 1. Eureka 注册
 
-   ```shell
-   curl http://localhost:8060/organization/1/with-departments-and-employees
-   ```
+打开 <http://localhost:8061>，应出现 Gateway 与三个业务服务，状态 `UP`。
 
-3. 打开 <http://localhost:8060/swagger-ui.html>，切换不同服务的 OpenAPI 定义。
-4. 连续调用接口后打开 <http://localhost:9411>，按 `gateway-service` 或业务服务检索 Trace。
-5. 对照控制台日志中的 `traceId`，确认同一请求在 Gateway、Organization、Department 和 Employee 之间传播。
+### 2. 单服务与聚合
+
+```shell
+curl http://localhost:8060/employee/
+curl http://localhost:8060/organization/1/with-departments-and-employees
+```
+
+员工列表应含 `John Smith`。聚合结果顶层为 `Microsoft`，部门下嵌套员工。这与 master 的业务路径相同，用来证明 Boot 3 栈没有改掉调用链。
+
+### 3. Springdoc 聚合（Boot 3 文档方案）
+
+打开 <http://localhost:8060/swagger-ui.html>，切换 employee / department / organization。也可：
+
+```shell
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8060/v3/api-docs/employee
+```
+
+应返回 `200`。
+
+### 4. 本 Demo 重点：Trace 跨服务传播
+
+连续调用聚合接口若干次：
+
+```shell
+curl -s http://localhost:8060/organization/1/with-departments-and-employees > /dev/null
+```
+
+**通过标准：**
+
+1. 打开 <http://localhost:9411>，按 `gateway-service` 或 `organization-service` 检索，应看到跨越多个 Span 的 Trace（Gateway → Organization → Department → Employee）。
+2. 从任一业务服务日志复制 `[traceId,spanId]` 中的 `traceId`，到 Zipkin 搜索，应命中同一条调用链。
+3. 四个服务日志里同一请求的 `traceId` 应一致。这能说明传播靠的是 Micrometer Tracing / OTel，而不是旧的 Spring Cloud Sleuth。
 
 ## 与 master 的区别
 
@@ -163,12 +194,18 @@ docker run --rm -p 9411:9411 swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/
 | --- | --- | --- |
 | Java / Spring Boot | Java 21 / Boot 3.5.9 | Java 25 / Boot 4.1.1 |
 | Spring Cloud | 2025.0.0 | 2025.1.3 |
-| 容器镜像 | Buildpacks profile | 多阶段 Dockerfile |
-| Compose | 引用预构建镜像 | 从源码 `--build` |
+| 容器镜像 | Buildpacks / Jib profile | 多阶段 Dockerfile |
+| Compose | 引用预构建镜像；业务端口不映射到宿主机 | 从源码 `--build`；映射 8080/8081/8082 |
 | 学习重点 | Boot 3 追踪、Springdoc、Buildpacks | 当前主线的一键运行与新版本 API |
+
+## 已知限制
+
+- Compose 不能 `docker compose up --build` 从源码直接出镜像，必须先 `mvn … -Pbuild-image`。
+- 采样率 `1.0` 仅适合本地教学。
+- 聚合接口同样存在 N+1 Feign 调用。
 
 ## 延伸阅读
 
 - [Microservices with Spring Boot 3 and Spring Cloud](https://piotrminkowski.com/2023/03/13/microservices-with-spring-boot-3-and-spring-cloud/)
+- 对照当前主线：[master](../master/readme.md)
 - 返回[示例总览](../../README.md)
-

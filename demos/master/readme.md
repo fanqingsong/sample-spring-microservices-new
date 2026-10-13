@@ -2,16 +2,16 @@
 
 ## Demo 目标
 
-本示例用一个可运行的系统串起微服务最常见的基础能力：
+本示例回答的是：**用 Config、Eureka、Gateway、OpenFeign、Springdoc 和 Zipkin 串起一条可运行的微服务调用链。** 领域仍是 Organization → Department → Employee，重点是基础设施如何协作，而不是业务 CRUD。
 
-- Config Server 集中保存各服务配置；
-- Eureka 完成服务注册与发现；
-- Spring Cloud Gateway 提供统一入口和基于服务名的负载均衡；
-- OpenFeign 实现 Organization → Department → Employee 的跨服务聚合；
-- Springdoc 在网关聚合三个业务服务的 OpenAPI 文档；
-- Micrometer Tracing 将 Trace 发送到 Zipkin。
+要验证的几件事：
 
-当前代码基于 Java 25、Spring Boot 4.1.1 和 Spring Cloud 2025.1.3。它不是旧文章中基于 Zuul 的实现；网关已经迁移到响应式 Spring Cloud Gateway。
+1. **配置先于服务**：Config Server 能按 `{application}/{profile}` 下发 YAML，Compose 在配置中心健康后再启 Eureka。
+2. **按服务名发现与路由**：业务服务和网关注册到 Eureka；Gateway 用 `lb://` 转发，而不是写死主机。
+3. **跨服务聚合**：`GET /organization/1/with-departments-and-employees` 一次请求打通 Gateway → Organization → Department → Employee。
+4. **文档与追踪统一入口**：网关聚合三份 OpenAPI；同一请求的 `traceId` 出现在各服务日志和 Zipkin 中。
+
+当前代码基于 **Java 25、Spring Boot 4.1.1、Spring Cloud 2025.1.3**。网关是响应式 Spring Cloud Gateway，不是旧文章里的 Zuul。
 
 ## 架构与请求流
 
@@ -96,6 +96,8 @@ Organization 只依赖 Department 的客户端，Department 再依赖 Employee �
 - 首次构建需要访问 Maven 依赖仓库和容器镜像仓库；
 - 本地 Maven 运行需要 JDK 25 与 Maven。
 
+工作目录：`demos/master`。
+
 ### 推荐：Docker Compose
 
 ```shell
@@ -130,20 +132,65 @@ docker run --rm -p 9411:9411 swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/
 
 ## 验证
 
-| 检查项 | 地址或命令 | 预期 |
-| --- | --- | --- |
-| 配置中心 | `curl http://localhost:8088/employee/docker` | 返回 employee 的 Docker profile 配置 |
-| 服务注册 | <http://localhost:8061> | Eureka 中出现网关和三个业务服务 |
-| 普通查询 | `curl http://localhost:8060/employee/` | 返回初始员工列表 |
-| 聚合查询 | `curl http://localhost:8060/organization/1/with-departments-and-employees` | 返回嵌套的组织、部门和员工 |
-| API 文档 | <http://localhost:8060/swagger-ui.html> | 可切换三个业务服务 |
-| 调用链 | <http://localhost:9411> | 可按服务或 Trace 检索调用链 |
+下面按“先基础设施，再单服务，再聚合，最后文档与追踪”的顺序做。Compose 使用表中地址；本地 Maven 时业务服务端口以 Eureka 为准，网关仍是 `8060`。
 
-如果 Eureka 已启动但网关立即返回 503，通常是业务实例仍在注册或尚未通过健康检查，稍后重试并查看 `docker compose logs <service>`。
+### 1. 配置中心可用
+
+```shell
+curl http://localhost:8088/employee/docker
+```
+
+应返回 employee 的 Docker profile YAML（含 `server.port`、Eureka 地址等）。本地 Maven 可改拉 `http://localhost:8088/employee/default`。
+
+### 2. Eureka 中已注册网关和三个业务服务
+
+打开 <http://localhost:8061>。`Application` 列表中应有 `GATEWAY-SERVICE`、`EMPLOYEE-SERVICE`、`DEPARTMENT-SERVICE`、`ORGANIZATION-SERVICE`，状态 `UP`。
+
+若刚启动就访问网关得到 503，多半是实例还在注册，稍等再试。
+
+### 3. 经网关访问单个服务
+
+```shell
+curl http://localhost:8060/employee/
+curl http://localhost:8060/department/
+curl http://localhost:8060/organization/
+```
+
+员工列表应含 `John Smith`、`Darren Hamilton` 等；组织列表应含 `Microsoft`、`Oracle`。这能说明 Gateway 的前缀剥离和 `lb://` 转发已生效。
+
+### 4. 跨服务聚合（本 Demo 主路径）
+
+```shell
+curl http://localhost:8060/organization/1/with-departments-and-employees
+```
+
+**通过标准：** JSON 顶层为组织 1（`name` 为 `Microsoft`），`departments` 中含 `Development` 与 `Operations`，各部门 `employees` 下再嵌员工（Development 下应能看到 `John Smith`）。说明 Feign 级联已打通。
+
+### 5. 网关聚合 OpenAPI
+
+打开 <http://localhost:8060/swagger-ui.html>，应能在文档下拉框中切换 employee / department / organization。也可：
+
+```shell
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8060/v3/api-docs/employee
+```
+
+应返回 `200`。
+
+### 6. Trace 跨服务传播
+
+再请求一次聚合接口，然后：
+
+1. 打开 <http://localhost:9411>，按 `gateway-service` 或 `organization-service` 检索，应看到一条跨越多个 Span 的 Trace。
+2. 对照各服务控制台日志中的 `[traceId,spanId]`，同一请求的 `traceId` 应一致。
+
+## 已知限制
+
+- 数据在内存中，重启即丢失；适合演示，不是持久化方案。
+- 聚合接口存在 N+1 Feign 调用，教学用，生产需超时、重试和批量查询。
+- 采样率设为 `1.0`，仅适合本地观察。
 
 ## 延伸阅读
 
 - [项目原始文章：Quick Guide to Microservices with Spring Boot, Eureka and Spring Cloud](https://piotrminkowski.com/2018/04/26/quick-guide-to-microservices-with-spring-boot-2-0-eureka-and-spring-cloud/)
 - [可观测性补充笔记](observability-notes.md)
 - 返回[示例总览](../../README.md)
-
